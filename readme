@@ -1,0 +1,7 @@
+This repository contains a collection of xperiments and projects developed while in residence at Makerbot Industries.
+
+KinectToStl requires:
+openFrameworks https://github.com/openframeworks/openFrameworks/
+ofxSTL https://code.google.com/p/ruicode/downloads/list
+ofxKinect https://github.com/ofTheo/ofxKinect/tree/experimental
+ofxControlPanel https://github.com/ofTheo/ofxControlPanel/
