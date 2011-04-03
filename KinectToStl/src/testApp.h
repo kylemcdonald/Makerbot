@@ -6,6 +6,11 @@
 #include "ofxSTL.h"
 #include "ofxAutoControlPanel.h"
 
+// rotate everything
+// constant scale regardless of size
+// multiple lights
+// smooth things
+
 class Triangle {
 public:
 	ofVec3f vert1, vert2, vert3;
@@ -19,6 +24,7 @@ class testApp : public ofBaseApp {
 		void draw();
 		void exit();
 		
+		void injectWatermark();
 		void updateSurface();
 		void updateTriangles();
 		void updateBack();
@@ -38,6 +44,8 @@ class testApp : public ofBaseApp {
 		float zCutoff;
 		
 		ofLight light;
+		
+		ofImage watermark;
 		
 		ofxAutoControlPanel panel;
 };

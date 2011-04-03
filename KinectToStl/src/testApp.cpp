@@ -26,9 +26,17 @@ void testApp::setup() {
 	
 	panel.setup("Control Panel", 5, 5, 250, 600);
 	panel.addPanel("Settings");
-	panel.addSlider("zCutoff", "zCutoff", 100, 0, 200);
-	panel.addSlider("backOffset", "backOffset", 10, 0, 100);
+	panel.addToggle("drawMesh", "drawMesh", true);
+	panel.addToggle("useWatermark", "useWatermark", true);
+	panel.addSlider("watermarkScale", "watermarkScale", 1, 0, 1);
+	panel.addSlider("watermarkXOffset", "watermarkXOffset", 10, 0, 320, true);
+	panel.addSlider("watermarkYOffset", "watermarkYOffset", 10, 0, 240, true);
+	panel.addSlider("zCutoff", "zCutoff", 100, 20, 200);
+	panel.addSlider("backOffset", "backOffset", 1, 0, 10);
 	panel.addToggle("exportStl", "exportStl", false);
+	
+	watermark.loadImage("watermark.png");
+	watermark.setImageType(OF_IMAGE_GRAYSCALE);
 	
 	kinect.init();
 	kinect.open();
@@ -43,8 +51,6 @@ void testApp::setup() {
 	backNormals.resize(triangles.size() * 3);
 	
 	ofSetFrameRate(60);
-	
-	kinect.setCameraTiltAngle(0);
 	
 	offset.set(0, 0, -100);
 }
@@ -73,9 +79,31 @@ void testApp::update() {
 	
 	kinect.update();
 	if(kinect.isFrameNew())	{
+		if(panel.getValueB("useWatermark")) {
+			injectWatermark();
+		}
 		updateSurface();
 		updateTriangles();
 		updateBack();
+	}
+}
+
+void testApp::injectWatermark() {
+	float* kinectPixels = kinect.getDistancePixels();
+	unsigned char* watermarkPixels = watermark.getPixels();
+	int w = watermark.getWidth();
+	int h = watermark.getHeight();
+	int i = 0;
+	float watermarkScale = panel.getValueF("watermarkScale") / 255.;
+	float zCutoff = panel.getValueF("zCutoff");
+	int watermarkYOffset = panel.getValueI("watermarkYOffset");
+	int watermarkXOffset = panel.getValueI("watermarkXOffset");
+	for(int y = 0; y < h; y++) {
+		for(int x = 0; x < w; x++) {
+			int j = (y + 1 + watermarkYOffset) * Xres - (x + watermarkXOffset) - 1; // kinect image is backwards
+			kinectPixels[j] = zCutoff - watermarkPixels[i] * watermarkScale;
+			i++;
+		}
 	}
 }
 
@@ -223,36 +251,39 @@ void drawTriangleArray(vector<Triangle>& triangles, vector<ofVec3f>& normals) {
 	glDisableClientState(GL_VERTEX_ARRAY);
 }
 
+void drawPointArray(vector<ofVec3f>& points) {
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glVertexPointer(3, GL_FLOAT, sizeof(ofVec3f), &(points[0].x));
+	glDrawArrays(GL_POINTS, 0, points.size());
+	glDisableClientState(GL_VERTEX_ARRAY);
+}
+
 void testApp::draw() {
 	ofBackground(0, 0, 0);
 	ofSetColor(255);
-	
-	glEnable(GL_DEPTH_TEST);
 	
 	cam.begin();
 	
 	if(!surface.empty()) {
 		ofTranslate(offset);
 		
-		/*
-		 // draw point cloud
-		 glEnableClientState(GL_VERTEX_ARRAY);
-		 glVertexPointer(3, GL_FLOAT, sizeof(ofVec3f), &(surface[0].x));
-		 glDrawArrays(GL_POINTS, 0, surface.size());
-		 glDisableClientState(GL_VERTEX_ARRAY);
-		 */
+		glEnable(GL_DEPTH_TEST);
 		
-		// draw triangles
-		drawTriangleArray(backTriangles, backNormals);
-		drawTriangleArray(triangles, normals);
+		if(panel.getValueB("drawMesh")) {
+			// draw triangles
+			drawTriangleArray(backTriangles, backNormals);
+			drawTriangleArray(triangles, normals);
+		} else {
+			// draw point cloud
+			drawPointArray(surface);
+		}
+		
+		glDisable(GL_DEPTH_TEST);
 	}
 	
 	cam.end();
-	
-	glDisable(GL_DEPTH_TEST);
 }
 
 void testApp::exit() {
-	kinect.setCameraTiltAngle(0); // zero the tilt on exit
 	kinect.close();
 }
