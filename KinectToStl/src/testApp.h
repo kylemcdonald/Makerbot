@@ -1,15 +1,15 @@
 #pragma once
 
 #include "ofMain.h"
-#include "ofxOpenCv.h"
 #include "ofxKinect.h"
 #include "ofxSTL.h"
 #include "ofxAutoControlPanel.h"
 
-// rotate everything
+#include "ofxCv.h"
+using namespace cv;
+
+// better smoothing
 // constant scale regardless of size
-// multiple lights
-// smooth things
 
 class Triangle {
 public:
@@ -24,6 +24,8 @@ class testApp : public ofBaseApp {
 		void draw();
 		void exit();
 		
+		void cutoffKinect();
+		void smoothKinect();
 		void injectWatermark();
 		void updateSurface();
 		void updateTriangles();
@@ -33,6 +35,7 @@ class testApp : public ofBaseApp {
 		ofEasyCam cam;
 		
 		vector<ofVec3f> surface;
+		vector<ofVec3f> normalSurface;
 		vector<Triangle> triangles;
 		vector<ofVec3f> normals;
 		
@@ -48,4 +51,6 @@ class testApp : public ofBaseApp {
 		ofImage watermark;
 		
 		ofxAutoControlPanel panel;
+		
+		float injectWatermarkTime, updateSurfaceTime, updateTrianglesTime, updateBackTime, renderTime;
 };

@@ -1,5 +1,15 @@
 #include "testApp.h"
 
+float startTime;
+void startTimer() {
+	startTime = ofGetElapsedTimef();
+}
+
+float stopTimer() {
+	float stopTime = ofGetElapsedTimef();
+	return 1000. * (stopTime - startTime);
+}
+
 ofVec3f getNormal(Triangle& triangle) {
 	ofVec3f a = triangle.vert1 - triangle.vert2;
 	ofVec3f b = triangle.vert3 - triangle.vert2;
@@ -27,21 +37,30 @@ void testApp::setup() {
 	panel.setup("Control Panel", 5, 5, 250, 600);
 	panel.addPanel("Settings");
 	panel.addToggle("drawMesh", "drawMesh", true);
+	panel.addToggle("useSmoothing", "useSmoothing", true);
+	panel.addSlider("zCutoff", "zCutoff", 100, 20, 200);
+	panel.addToggle("exportStl", "exportStl", false);
+	
+	panel.addPanel("Extra");
+	panel.addSlider("smoothingSize", "smoothingSize", 0, 0, 4, true);
+	panel.addSlider("backOffset", "backOffset", 1, 0, 10);
+	panel.addSlider("lightDistance", "lightDistance", 800, 0, 1000);
+	panel.addSlider("lightOffset", "lightOffset", 400, 0, 1000);
 	panel.addToggle("useWatermark", "useWatermark", true);
 	panel.addSlider("watermarkScale", "watermarkScale", 1, 0, 1);
 	panel.addSlider("watermarkXOffset", "watermarkXOffset", 10, 0, 320, true);
 	panel.addSlider("watermarkYOffset", "watermarkYOffset", 10, 0, 240, true);
-	panel.addSlider("zCutoff", "zCutoff", 100, 20, 200);
-	panel.addSlider("backOffset", "backOffset", 1, 0, 10);
-	panel.addToggle("exportStl", "exportStl", false);
 	
 	watermark.loadImage("watermark.png");
 	watermark.setImageType(OF_IMAGE_GRAYSCALE);
 	
+	cam.setDistance(100);
+	
 	kinect.init();
 	kinect.open();
 	
-	light.setup();
+	light.setup();	
+	ofSetGlobalAmbientColor(ofColor(0));
 	
 	surface.resize(Xres * Yres);
 	triangles.resize((Xres - 1) * (Yres - 1) * 2);
@@ -79,13 +98,131 @@ void testApp::update() {
 	
 	kinect.update();
 	if(kinect.isFrameNew())	{
-		if(panel.getValueB("useWatermark")) {
-			injectWatermark();
+		cutoffKinect();
+		
+		if(panel.getValueB("useSmoothing")) {
+			smoothKinect();
 		}
+		
+		if(panel.getValueB("useWatermark")) {
+			startTimer();
+			injectWatermark();
+			injectWatermarkTime = stopTimer();
+		}
+		
+		startTimer();
 		updateSurface();
-		updateTriangles();
-		updateBack();
+		updateSurfaceTime = stopTimer();
+		
+		if(panel.getValueB("drawMesh")) {
+			startTimer();
+			updateTriangles();
+			updateTrianglesTime = stopTimer();
+			
+			startTimer();
+			updateBack();
+			updateBackTime = stopTimer();
+		}
 	}
+	
+	light.setPosition(panel.getValueF("lightOffset"), 0, panel.getValueF("lightDistance"));
+}
+
+void testApp::smoothKinect() {
+	int w = kinect.getWidth();
+	int h = kinect.getHeight();
+	float* z = kinect.getDistancePixels();
+	float* zx = new float[w * h];
+	float* zy = new float[w * h];
+	
+	for(int y = 0; y < h; y++) {
+		int distance = 0;
+		float stepSize = 0;
+		float running = 0;
+		int i = y * w;
+		for(int x = 0; x < w; x++) {
+			float cur = z[i];
+			if(distance == 0) {
+				int remaining = w - x;
+				bool found = false;
+				for(int k = 0; k < remaining; k++) {
+					if(z[i + k] != cur) {
+						distance = k;
+						float diff = z[i + k] - cur;
+						stepSize = diff / distance;
+						found = true;
+						break;
+					}
+				}
+				if(!found) {
+					distance = remaining;
+					stepSize = 0;
+				}
+				running = cur;
+			} else {
+				running += stepSize;
+				distance--;
+			}
+			if(cur != zCutoff) {
+				zx[i] = running;
+			} else {
+				zx[i] = cur;
+			}
+			i++;
+		}
+	}
+	
+	for(int x = 0; x < w; x++) {
+		int distance = 0;
+		float stepSize = 0;
+		float running = 0;
+		int i = x;
+		for(int y = 0; y < h; y++) {
+			float cur = z[i];
+			if(distance == 0) {
+				int remaining = h - y;
+				bool found = false;
+				for(int k = 0; k < remaining; k++) {
+					if(z[i + k * w] != cur) {
+						distance = k;
+						float diff = z[i + k * w] - cur;
+						stepSize = diff / distance;
+						found = true;
+						break;
+					}
+				}
+				if(!found) {
+					distance = remaining;
+					stepSize = 0;
+				}
+				running = cur;
+			} else {
+				running += stepSize;
+				distance--;
+			}
+			if(cur != zCutoff) {
+				zy[i] = running;
+			} else {
+				zy[i] = cur;
+			}
+			i += w;
+		}
+	}
+	
+	int n = w * h;
+	for(int i = 0; i < n; i++) {
+		z[i] = (zx[i] + zy[i]) / 2;
+	}
+	
+	delete [] zx;
+	delete [] zy;	
+	
+	Mat zMat(kinect.getHeight(), kinect.getWidth(), CV_32FC1, z, 0);
+	Mat buffer;
+	zMat.copyTo(buffer);
+	medianBlur(buffer, zMat, 3);
+	int smoothingSize = panel.getValueI("smoothingSize") * 2 + 1;
+	GaussianBlur(zMat, zMat, cv::Size(smoothingSize, smoothingSize), 0);	
 }
 
 void testApp::injectWatermark() {
@@ -95,14 +232,25 @@ void testApp::injectWatermark() {
 	int h = watermark.getHeight();
 	int i = 0;
 	float watermarkScale = panel.getValueF("watermarkScale") / 255.;
-	float zCutoff = panel.getValueF("zCutoff");
 	int watermarkYOffset = panel.getValueI("watermarkYOffset");
 	int watermarkXOffset = panel.getValueI("watermarkXOffset");
 	for(int y = 0; y < h; y++) {
 		for(int x = 0; x < w; x++) {
-			int j = (y + 1 + watermarkYOffset) * Xres - (x + watermarkXOffset) - 1; // kinect image is backwards
-			kinectPixels[j] = zCutoff - watermarkPixels[i] * watermarkScale;
+			if(watermarkPixels[i] != 0) {
+				int j = (y + 1 + watermarkYOffset) * Xres - (x + watermarkXOffset) - 1; // kinect image is backwards
+				kinectPixels[j] = zCutoff - watermarkPixels[i] * watermarkScale;
+			}
 			i++;
+		}
+	}
+}
+
+void testApp::cutoffKinect() {
+	float* z = kinect.getDistancePixels();
+	int n = kinect.getWidth() * kinect.getHeight();
+	for(int i = 0; i < n; i++) {
+		if(z[i] > zCutoff || z[i] < 10) {
+			z[i] = zCutoff;
 		}
 	}
 }
@@ -112,9 +260,6 @@ void testApp::updateSurface() {
 	int i = 0;
 	for(int y = 0; y < Yres; y++) {
 		for(int x = 0; x < Xres; x++) {
-			if(z[i] > zCutoff || z[i] < 10) {
-				z[i] = zCutoff;
-			}
 			surface[i] = ConvertProjectiveToRealWorld(x, y, z[i]);
 			i++;
 		}
@@ -263,11 +408,15 @@ void testApp::draw() {
 	ofSetColor(255);
 	
 	cam.begin();
+	ofRotateY(180);
+	ofEnableLighting();
 	
 	if(!surface.empty()) {
 		ofTranslate(offset);
 		
 		glEnable(GL_DEPTH_TEST);
+		
+		startTimer();
 		
 		if(panel.getValueB("drawMesh")) {
 			// draw triangles
@@ -278,10 +427,22 @@ void testApp::draw() {
 			drawPointArray(surface);
 		}
 		
+		renderTime = stopTimer();
+		
 		glDisable(GL_DEPTH_TEST);
 	}
 	
+	ofDisableLighting();	
 	cam.end();
+	
+	ofPushMatrix();
+	ofTranslate(ofGetWidth() - 200, ofGetHeight() - 60);
+	ofDrawBitmapString("injectWatermarkTime: " + ofToString((int) injectWatermarkTime), 0, 0);
+	ofDrawBitmapString("updateSurfaceTime: " + ofToString((int) updateSurfaceTime), 0, 10);
+	ofDrawBitmapString("updateTrianglesTime: " + ofToString((int) updateTrianglesTime), 0, 20);
+	ofDrawBitmapString("updateBackTime: " + ofToString((int) updateBackTime), 0, 30);
+	ofDrawBitmapString("renderTime: " + ofToString((int) renderTime), 0, 40);
+	ofPopMatrix();
 }
 
 void testApp::exit() {
