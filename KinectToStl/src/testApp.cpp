@@ -18,6 +18,19 @@ ofVec3f getNormal(Triangle& triangle) {
 	return normal;
 }
 
+void calculateNormals(vector<Triangle>& triangles, vector<ofVec3f>& normals) {
+	normals.resize(triangles.size() * 3);
+	
+	int j = 0;
+	ofVec3f normal;
+	for(int i = 0; i < triangles.size(); i++) {
+		normal = getNormal(triangles[i]);
+		for(int m = 0; m < 3; m++) {
+			normals[j++] = normal;
+		}
+	}
+}
+
 const float FovH=1.0144686707507438;
 const float FovV=0.78980943449644714;
 const float XtoZ = tanf(FovH/2)*2;
@@ -32,26 +45,37 @@ ofVec3f ConvertProjectiveToRealWorld(float x, float y, float z) {
 }
 
 void testApp::setup() {
+	//printer.setup("192.168.0.160", 2000);
+	
 	ofSetVerticalSync(true);
 	
-	panel.setup("Control Panel", 5, 5, 250, 600);
+	panel.setup("Control Panel", 5, 5, 250, 800);
 	panel.addPanel("Settings");
-	panel.addToggle("drawMesh", "drawMesh", true);
-	panel.addToggle("useSmoothing", "useSmoothing", true);
 	panel.addSlider("zCutoff", "zCutoff", 100, 20, 200);
+	panel.addSlider("stlWidth", "stlWidth", 60, 10, 120);
 	panel.addToggle("exportStl", "exportStl", false);
+	panel.addToggle("useRandomExport", "useRandomExport", false);
 	
 	panel.addPanel("Extra");
-	panel.addSlider("smoothingSize", "smoothingSize", 0, 0, 4, true);
-	panel.addSlider("backOffset", "backOffset", 1, 0, 10);
-	panel.addSlider("lightDistance", "lightDistance", 800, 0, 1000);
-	panel.addSlider("lightOffset", "lightOffset", 400, 0, 1000);
-	panel.addToggle("useWatermark", "useWatermark", true);
-	panel.addSlider("watermarkScale", "watermarkScale", 1, 0, 1);
+	panel.addToggle("drawMesh", "drawMesh", true);
+	panel.addToggle("drawWire", "drawWire", false);
+	panel.addToggle("useRandom", "useRandom", false);
+	panel.addSlider("randomCount", "randomCount", 10000, 500, 20000, true);
+	panel.addSlider("randomBlur", "randomBlur", 6, 0, 10);
+	panel.addSlider("randomWeight", "randomWeight", 1.5, 0, 2);
+	panel.addToggle("useSmoothing", "useSmoothing", true);
+	panel.addSlider("smoothingAmount", "smoothingAmount", 1, 0, 4);
+	panel.addSlider("backOffset", "backOffset", 1, 0, 4);
+	panel.addToggle("useWatermark", "useWatermark", false);
+	panel.addSlider("watermarkScale", "watermarkScale", 2, 0, 8);
 	panel.addSlider("watermarkXOffset", "watermarkXOffset", 10, 0, 320, true);
 	panel.addSlider("watermarkYOffset", "watermarkYOffset", 10, 0, 240, true);
+	panel.addSlider("lightDistance", "lightDistance", 800, 0, 1000);
+	panel.addSlider("lightOffset", "lightOffset", 400, 0, 1000);
+	panel.addToggle("useSimplify", "useSimplify", true);
+	panel.addToggle("pause", "pause", false);
 	
-	watermark.loadImage("watermark.png");
+	watermark.loadImage(".watermark.png");
 	watermark.setImageType(OF_IMAGE_GRAYSCALE);
 	
 	cam.setDistance(100);
@@ -59,12 +83,10 @@ void testApp::setup() {
 	kinect.init();
 	kinect.open();
 	
-	light.setup();	
-	ofSetGlobalAmbientColor(ofColor(0));
+	light.setup();
+	light.setDiffuseColor(ofColor(128));
 	
 	surface.resize(Xres * Yres);
-	triangles.resize((Xres - 1) * (Yres - 1) * 2);
-	normals.resize(triangles.size() * 3);
 	
 	backTriangles.resize(2 * (((Xres - 1) + (Yres - 1)) * 2 + 1));
 	backNormals.resize(triangles.size() * 3);
@@ -82,22 +104,17 @@ void addTriangles(ofxSTLExporter& exporter, vector<Triangle>& triangles, vector<
 
 #include "Poco/DateTimeFormatter.h"
 void testApp::update() {	
-	zCutoff = panel.getValueF("zCutoff");
-	
-	if(panel.getValueB("exportStl")) {		
-		string pocoTime = Poco::DateTimeFormatter::format(Poco::LocalDateTime(), "%Y-%m-%d at %H.%M.%S");
-		
-		ofxSTLExporter exporter;
-		exporter.beginModel("Kinect Export");
-		addTriangles(exporter, triangles, normals);
-		addTriangles(exporter, backTriangles, backNormals);
-		exporter.saveModel("Kinect Export " + pocoTime + ".stl");
-		
-		panel.setValueB("exportStl", false);
-	}
-	
 	kinect.update();
-	if(kinect.isFrameNew())	{
+	if(!panel.getValueB("pause") && kinect.isFrameNew())	{
+		zCutoff = panel.getValueF("zCutoff");
+		
+		ofVec3f idealLeft = ConvertProjectiveToRealWorld(0, 0, zCutoff);
+		ofVec3f idealRight = ConvertProjectiveToRealWorld(Xres - 1, 0, zCutoff);
+		float width = (idealRight - idealLeft).x;
+		globalScale = panel.getValueF("stlWidth") / width;
+		
+		backOffset = panel.getValueF("backOffset") / globalScale;
+		
 		cutoffKinect();
 		
 		if(panel.getValueB("useSmoothing")) {
@@ -114,115 +131,87 @@ void testApp::update() {
 		updateSurface();
 		updateSurfaceTime = stopTimer();
 		
-		if(panel.getValueB("drawMesh")) {
-			startTimer();
+		startTimer();
+		updateBack();
+		updateBackTime = stopTimer();
+		
+		bool exportStl = panel.getValueB("exportStl");
+		bool useRandomExport = panel.getValueB("useRandomExport");
+		
+		startTimer();
+		if((exportStl && useRandomExport) || panel.getValueB("useRandom")) {
+			updateTrianglesRandom();
+		} else if(panel.getValueB("useSimplify")) {
+			updateTrianglesSimplify();
+		} else {
 			updateTriangles();
-			updateTrianglesTime = stopTimer();
+		}
+		calculateNormals(triangles, normals);
+		updateTrianglesTime = stopTimer();
+		
+		startTimer();
+		postProcess();
+		postProcessTime = stopTimer();
+		
+		if(exportStl) {
+			string pocoTime = Poco::DateTimeFormatter::format(Poco::LocalDateTime(), "%Y-%m-%d at %H.%M.%S");
 			
-			startTimer();
-			updateBack();
-			updateBackTime = stopTimer();
+			ofxSTLExporter exporter;
+			exporter.beginModel("Kinect Export");
+			addTriangles(exporter, triangles, normals);
+			addTriangles(exporter, backTriangles, backNormals);
+			exporter.saveModel("Kinect Export " + pocoTime + ".stl");
+			
+			if(printer.isConnected()) {
+				printer.printToFile("/home/matt/MakerBot/repg_workspace/ReplicatorG/examples/Snake.stl", "/home/matt/Desktop/snake.s3g");
+			}
+			
+			panel.setValueB("exportStl", false);
 		}
 	}
 	
 	light.setPosition(panel.getValueF("lightOffset"), 0, panel.getValueF("lightDistance"));
 }
 
-void testApp::smoothKinect() {
-	int w = kinect.getWidth();
-	int h = kinect.getHeight();
-	float* z = kinect.getDistancePixels();
-	float* zx = new float[w * h];
-	float* zy = new float[w * h];
-	
-	for(int y = 0; y < h; y++) {
-		int distance = 0;
-		float stepSize = 0;
-		float running = 0;
-		int i = y * w;
-		for(int x = 0; x < w; x++) {
-			float cur = z[i];
-			if(distance == 0) {
-				int remaining = w - x;
-				bool found = false;
-				for(int k = 0; k < remaining; k++) {
-					if(z[i + k] != cur) {
-						distance = k;
-						float diff = z[i + k] - cur;
-						stepSize = diff / distance;
-						found = true;
-						break;
-					}
-				}
-				if(!found) {
-					distance = remaining;
-					stepSize = 0;
-				}
-				running = cur;
-			} else {
-				running += stepSize;
-				distance--;
-			}
-			if(cur != zCutoff) {
-				zx[i] = running;
-			} else {
-				zx[i] = cur;
-			}
-			i++;
-		}
+
+void testApp::postProcess(ofVec3f& vert, float scale) {
+	vert.z *= -1;
+	vert.x *= -1;
+	vert.z += zCutoff + backOffset;
+	vert *= scale;
+}
+
+void testApp::postProcess(vector<Triangle>& triangles, float scale) {
+	for(int i = 0; i < triangles.size(); i++) {
+		Triangle& cur = triangles[i];
+		postProcess(cur.vert1, scale);
+		postProcess(cur.vert2, scale);
+		postProcess(cur.vert3, scale);
 	}
-	
-	for(int x = 0; x < w; x++) {
-		int distance = 0;
-		float stepSize = 0;
-		float running = 0;
-		int i = x;
-		for(int y = 0; y < h; y++) {
-			float cur = z[i];
-			if(distance == 0) {
-				int remaining = h - y;
-				bool found = false;
-				for(int k = 0; k < remaining; k++) {
-					if(z[i + k * w] != cur) {
-						distance = k;
-						float diff = z[i + k * w] - cur;
-						stepSize = diff / distance;
-						found = true;
-						break;
-					}
-				}
-				if(!found) {
-					distance = remaining;
-					stepSize = 0;
-				}
-				running = cur;
-			} else {
-				running += stepSize;
-				distance--;
-			}
-			if(cur != zCutoff) {
-				zy[i] = running;
-			} else {
-				zy[i] = cur;
-			}
-			i += w;
-		}
+}
+
+void testApp::postProcess(vector<ofVec3f>& normals) {
+	for(int i = 0; i < normals.size(); i++) {
+		ofVec3f& cur = normals[i];
+		cur.z *= -1;
+		cur.x *= -1;
 	}
+}
+
+void testApp::postProcess() {	
+	postProcess(triangles, globalScale);
+	postProcess(normals);
+	postProcess(backTriangles, globalScale);
+	postProcess(backNormals);
+}
+
+Mat bfBuffer;
+void testApp::smoothKinect() {		
+	Mat zMat(kinect.getHeight(), kinect.getWidth(), CV_32FC1, kinect.getDistancePixels());
 	
-	int n = w * h;
-	for(int i = 0; i < n; i++) {
-		z[i] = (zx[i] + zy[i]) / 2;
-	}
-	
-	delete [] zx;
-	delete [] zy;	
-	
-	Mat zMat(kinect.getHeight(), kinect.getWidth(), CV_32FC1, z, 0);
-	Mat buffer;
-	zMat.copyTo(buffer);
-	medianBlur(buffer, zMat, 3);
-	int smoothingSize = panel.getValueI("smoothingSize") * 2 + 1;
-	GaussianBlur(zMat, zMat, cv::Size(smoothingSize, smoothingSize), 0);	
+	int k = ((int) panel.getValueI("smoothingAmount") * 2) + 1;
+	zMat.copyTo(bfBuffer);
+	GaussianBlur(bfBuffer, zMat, cv::Size(k, k), 0);
 }
 
 void testApp::injectWatermark() {
@@ -231,7 +220,7 @@ void testApp::injectWatermark() {
 	int w = watermark.getWidth();
 	int h = watermark.getHeight();
 	int i = 0;
-	float watermarkScale = panel.getValueF("watermarkScale") / 255.;
+	float watermarkScale = panel.getValueF("watermarkScale") / (255. * globalScale);
 	int watermarkYOffset = panel.getValueI("watermarkYOffset");
 	int watermarkXOffset = panel.getValueI("watermarkXOffset");
 	for(int y = 0; y < h; y++) {
@@ -276,20 +265,10 @@ void testApp::updateSurface() {
 	}
 }
 
-void calculateNormals(vector<Triangle>& triangles, vector<ofVec3f>& normals) {
-	int j = 0;
-	ofVec3f normal;
-	for(int i = 0; i < triangles.size(); i++) {
-		normal = getNormal(triangles[i]);
-		for(int m = 0; m < 3; m++) {
-			normals[j++] = normal;
-		}
-	}
-}
-
 void testApp::updateTriangles() {
+	triangles.resize((Xres - 1) * (Yres - 1) * 2);
+	
 	int j = 0;
-	int k = 0;
 	for(int y = 0; y < Yres - 1; y++) {
 		for(int x = 0; x < Xres - 1; x++) {
 			int i = y * Xres + x;
@@ -310,83 +289,161 @@ void testApp::updateTriangles() {
 			j++;
 		}
 	}
+}
+
+void testApp::updateTrianglesSimplify() {
+	triangles.resize((Xres - 1) * (Yres - 1) * 2);
 	
-	calculateNormals(triangles, normals);
+	int j = 0;
+	Triangle* top;
+	Triangle* bottom;
+	float* z = kinect.getDistancePixels();
+	for(int y = 0; y < Yres - 1; y++) {
+		bool stretching = false;
+		for(int x = 0; x < Xres - 1; x++) {
+			int i = y * Xres + x;
+			
+			int nw = i;
+			int ne = nw + 1;
+			int sw = i + Xres;
+			int se = sw + 1;
+			
+			bool flat = (z[nw] == z[ne] && z[nw] == z[sw] && z[nw] == z[se]);
+			bool endOfRow = (x == Xres - 2);
+			if(endOfRow ||
+				 (stretching && flat)) {
+				// stretch the quad to our new position
+				top->vert2 = surface[ne];
+				bottom->vert1 = surface[ne];
+				bottom->vert2 = surface[se];
+			} else {			
+				top = &triangles[j++];
+				top->vert1 = surface[nw];
+				top->vert2 = surface[ne];
+				top->vert3 = surface[sw];
+				
+				bottom = &triangles[j++];
+				bottom->vert1 = surface[ne];
+				bottom->vert2 = surface[se];
+				bottom->vert3 = surface[sw];
+				
+				stretching = flat;
+			}
+		}
+	}
+	triangles.resize(j);
+}
+
+ofVec3f testApp::getSurface(XYZ& position) {
+	return surface[position.y * Xres + position.x];
+}
+
+vector<ofVec2f> points;
+Mat sobelxy;
+Mat sobelbox;
+int attempts;
+void testApp::updateTrianglesRandom() {
+	Mat mat = Mat(kinect.getHeight(), kinect.getWidth(), CV_32FC1, kinect.getDistancePixels());
+	
+	Sobel(mat, sobelxy, CV_32F, 1, 1);
+	
+	sobelxy = abs(sobelxy);
+	int randomBlur = panel.getValueI("randomBlur") * 2 + 1;
+	boxFilter(sobelxy, sobelbox, 0, cv::Size(randomBlur, randomBlur), Point2d(-1, -1), false);
+	
+	triangulator.init();
+	points.clear();
+	int i = 0;
+	attempts = 0;
+	int randomCount = panel.getValueI("randomCount");
+	float randomWeight = panel.getValueF("randomWeight");
+	while(i < randomCount) {
+		Point2d curPosition(1 + (int) ofRandom(sobelbox.cols - 3), 
+												1 + (int) ofRandom(sobelbox.rows - 3));
+		float curSample = sobelbox.at<unsigned char>(curPosition) / 255.f;
+		float curGauntlet = powf(ofRandom(0, 1), 2 * randomWeight);
+		if(curSample > curGauntlet) {
+			points.push_back(makeVec(curPosition));
+			triangulator.addPoint(curPosition.x, curPosition.y);
+			sobelbox.at<unsigned char>(curPosition) = 0; // don't do the same point twice
+			i++;
+		}
+		attempts++;
+		if(i > attempts * 100) {
+			break;
+		}
+	}
+	
+	// add the edges
+	int w = mat.cols;
+	int h = mat.rows;
+	for(int x = 0; x < w; x++) {
+		triangulator.addPoint(x, 0);
+		triangulator.addPoint(x, h - 1);
+	}
+	for(int y = 0; y < h; y++) {
+		triangulator.addPoint(0, y);
+		triangulator.addPoint(w - 1, y);
+	}
+	
+	triangulator.triangulate();
+	
+	int n = triangulator.getNumTriangles();
+	XYZ* pts = triangulator.getPoints();
+	ITRIANGLE* tris = triangulator.getTriangles();
+	triangles.resize(n);
+	for(int i = 0; i < n; i++) {
+		triangles[i].vert3 = getSurface(pts[tris[i].p1]);
+		triangles[i].vert2 = getSurface(pts[tris[i].p2]);
+		triangles[i].vert1 = getSurface(pts[tris[i].p3]);
+	}
+}
+
+void testApp::addBack(ofVec3f a, ofVec3f b, ofVec3f c) {
+	backTriangles.push_back(Triangle(a, b, c));
 }
 
 void testApp::updateBack() {
-	int j = 0;
-	Triangle* cur = &backTriangles[0];
-	ofVec3f offset(0, 0, panel.getValueF("backOffset"));
-	
-	// top and bottom triangles
-	for(int x = 0; x < Xres - 1; x++) {
-		int i = 0 * Xres + x;
-		cur->vert1 = surface[i] + offset;
-		cur->vert2 = surface[i + 1];
-		cur->vert3 = surface[i];
-		cur++;
-		
-		cur->vert1 = surface[i] + offset;
-		cur->vert2 = surface[i + 1] + offset;
-		cur->vert3 = surface[i + 1];
-		cur++;
-		
-		i += (Yres - 1) * Xres;
-		cur->vert1 = surface[i];
-		cur->vert2 = surface[i + 1];
-		cur->vert3 = surface[i] + offset;
-		cur++;
-		
-		cur->vert1 = surface[i + 1];
-		cur->vert2 = surface[i + 1] + offset;
-		cur->vert3 = surface[i] + offset;
-		cur++;
-	}
-	
-	// left and right triangles
-	for(int y = 0; y < Yres - 1; y++) {
-		int i = y * Xres + 0;
-		cur->vert3 = surface[i] + offset;
-		cur->vert2 = surface[i + Xres];
-		cur->vert1 = surface[i];
-		cur++;
-		
-		cur->vert3 = surface[i] + offset;
-		cur->vert2 = surface[i + Xres] + offset;
-		cur->vert1 = surface[i + Xres];
-		cur++;
-		
-		i += Xres - 1;
-		cur->vert3 = surface[i];
-		cur->vert2 = surface[i + Xres];
-		cur->vert1 = surface[i] + offset;
-		cur++;
-		
-		cur->vert3 = surface[i + Xres];
-		cur->vert2 = surface[i + Xres] + offset;
-		cur->vert1 = surface[i] + offset;
-		cur++;
-	}
+	backTriangles.clear();
+	Triangle cur;
+	ofVec3f offset(0, 0, backOffset);
 	
 	int nw = 0;
 	int ne = nw + (Xres - 1);
 	int sw = (Yres - 1) * Xres;
 	int se = sw + (Xres - 1);
 	
-	cur->vert1 = surface[sw] + offset;
-	cur->vert2 = surface[ne] + offset;
-	cur->vert3 = surface[nw] + offset;
-	cur++;
+	ofVec3f nwOffset = surface[nw] + offset;
+	ofVec3f swOffset = surface[sw] + offset;
+	ofVec3f neOffset = surface[ne] + offset;
 	
-	cur->vert1 = surface[sw] + offset;
-	cur->vert2 = surface[se] + offset;
-	cur->vert3 = surface[ne] + offset;
+	// top and bottom triangles
+	for(int x = 0; x < Xres - 1; x++) {
+		addBack(nwOffset, surface[nw + x + 1], surface[nw + x]);
+		addBack(surface[sw + x], surface[sw + x + 1], swOffset);
+	}
+	
+	// left and right triangles
+	for(int y = 0; y < Yres - 1; y++) {
+		int i = Xres * y;
+		addBack(surface[nw + i], surface[nw + i + Xres], nwOffset);
+		addBack(neOffset, surface[ne + i + Xres], surface[ne + i]);
+	}
+	
+	addBack(surface[nw] + offset, surface[ne] + offset, surface[ne]);
+	addBack(surface[ne] + offset, surface[se] + offset, surface[se]);
+	addBack(surface[sw], surface[sw] + offset, surface[nw] + offset);
+	addBack(surface[se], surface[se] + offset, surface[sw] + offset);
+	
+	// two back faces	
+	addBack(surface[sw] + offset, surface[ne] + offset, surface[nw] + offset);
+	addBack(surface[sw] + offset, surface[se] + offset, surface[ne] + offset);
 	
 	calculateNormals(backTriangles, backNormals);
 }
 
 void drawTriangleArray(vector<Triangle>& triangles, vector<ofVec3f>& normals) {
+	ofSetColor(255);
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glEnableClientState(GL_NORMAL_ARRAY);
 	glVertexPointer(3, GL_FLOAT, sizeof(ofVec3f), &(triangles[0].vert1.x));
@@ -396,11 +453,21 @@ void drawTriangleArray(vector<Triangle>& triangles, vector<ofVec3f>& normals) {
 	glDisableClientState(GL_VERTEX_ARRAY);
 }
 
-void drawPointArray(vector<ofVec3f>& points) {
-	glEnableClientState(GL_VERTEX_ARRAY);
-	glVertexPointer(3, GL_FLOAT, sizeof(ofVec3f), &(points[0].x));
-	glDrawArrays(GL_POINTS, 0, points.size());
-	glDisableClientState(GL_VERTEX_ARRAY);
+void drawTriangleWire(vector<Triangle>& triangles) {
+	ofSetColor(255);
+	int n = triangles.size();
+	glBegin(GL_LINES);
+	for(int i = 0; i < n; i++) {
+		glVertex3fv(&(triangles[i].vert1.x));
+		glVertex3fv(&(triangles[i].vert2.x));
+		
+		glVertex3fv(&(triangles[i].vert2.x));
+		glVertex3fv(&(triangles[i].vert3.x));
+		
+		glVertex3fv(&(triangles[i].vert3.x));
+		glVertex3fv(&(triangles[i].vert1.x));
+	}
+	glEnd();
 }
 
 void testApp::draw() {
@@ -408,23 +475,27 @@ void testApp::draw() {
 	ofSetColor(255);
 	
 	cam.begin();
-	ofRotateY(180);
 	ofEnableLighting();
 	
 	if(!surface.empty()) {
-		ofTranslate(offset);
 		
 		glEnable(GL_DEPTH_TEST);
+		
+		ofPushStyle();
+		ofPopStyle();
 		
 		startTimer();
 		
 		if(panel.getValueB("drawMesh")) {
 			// draw triangles
+			ofSetGlobalAmbientColor(ofColor(128));
 			drawTriangleArray(backTriangles, backNormals);
 			drawTriangleArray(triangles, normals);
-		} else {
-			// draw point cloud
-			drawPointArray(surface);
+		}
+		
+		if(panel.getValueB("drawWire")) {
+			drawTriangleWire(backTriangles);
+			drawTriangleWire(triangles);
 		}
 		
 		renderTime = stopTimer();
@@ -436,13 +507,19 @@ void testApp::draw() {
 	cam.end();
 	
 	ofPushMatrix();
-	ofTranslate(ofGetWidth() - 200, ofGetHeight() - 60);
+	ofTranslate(ofGetWidth() - 200, ofGetHeight() - 80);
 	ofDrawBitmapString("injectWatermarkTime: " + ofToString((int) injectWatermarkTime), 0, 0);
 	ofDrawBitmapString("updateSurfaceTime: " + ofToString((int) updateSurfaceTime), 0, 10);
 	ofDrawBitmapString("updateTrianglesTime: " + ofToString((int) updateTrianglesTime), 0, 20);
 	ofDrawBitmapString("updateBackTime: " + ofToString((int) updateBackTime), 0, 30);
 	ofDrawBitmapString("renderTime: " + ofToString((int) renderTime), 0, 40);
+	ofDrawBitmapString("tris: " + ofToString((int) triangles.size()), 0, 50);
+	ofDrawBitmapString("back: " + ofToString((int) backTriangles.size()), 0, 60);
+	ofDrawBitmapString("postProcessTime: " + ofToString((int) postProcessTime), 0, 70);
 	ofPopMatrix();
+}
+
+void testApp::keyPressed(int key) {
 }
 
 void testApp::exit() {

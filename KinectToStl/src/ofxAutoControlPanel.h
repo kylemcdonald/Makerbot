@@ -16,6 +16,7 @@ class ofxAutoControlPanel : public ofxControlPanel {
 public:
 	ofxAutoControlPanel() {
 		setXMLFilename("settings.xml");
+		loadSettings("settings.xml");
 		ofAddListener(ofEvents.update, this, &ofxAutoControlPanel::update);
 		ofAddListener(ofEvents.draw, this, &ofxAutoControlPanel::draw);
 		ofAddListener(ofEvents.keyPressed, this, &ofxAutoControlPanel::keyPressed);
@@ -43,6 +44,9 @@ public:
 			} else {
 				hide();
 			}
+		}
+		if(event.key == 'f') {
+			ofToggleFullscreen();
 		}
 	}
 	void show() {
