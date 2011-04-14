@@ -443,31 +443,35 @@ void testApp::updateBack() {
 }
 
 void drawTriangleArray(vector<Triangle>& triangles, vector<ofVec3f>& normals) {
-	ofSetColor(255);
-	glEnableClientState(GL_VERTEX_ARRAY);
-	glEnableClientState(GL_NORMAL_ARRAY);
-	glVertexPointer(3, GL_FLOAT, sizeof(ofVec3f), &(triangles[0].vert1.x));
-	glNormalPointer(GL_FLOAT, sizeof(ofVec3f), &(normals[0].x));
-	glDrawArrays(GL_TRIANGLES, 0, triangles.size() * 3);
-	glDisableClientState(GL_NORMAL_ARRAY);
-	glDisableClientState(GL_VERTEX_ARRAY);
+	if(!triangles.empty() && !normals.empty()) {
+		ofSetColor(255);
+		glEnableClientState(GL_VERTEX_ARRAY);
+		glEnableClientState(GL_NORMAL_ARRAY);
+		glVertexPointer(3, GL_FLOAT, sizeof(ofVec3f), &(triangles[0].vert1.x));
+		glNormalPointer(GL_FLOAT, sizeof(ofVec3f), &(normals[0].x));
+		glDrawArrays(GL_TRIANGLES, 0, triangles.size() * 3);
+		glDisableClientState(GL_NORMAL_ARRAY);
+		glDisableClientState(GL_VERTEX_ARRAY);
+	}
 }
 
 void drawTriangleWire(vector<Triangle>& triangles) {
-	ofSetColor(255);
-	int n = triangles.size();
-	glBegin(GL_LINES);
-	for(int i = 0; i < n; i++) {
-		glVertex3fv(&(triangles[i].vert1.x));
-		glVertex3fv(&(triangles[i].vert2.x));
-		
-		glVertex3fv(&(triangles[i].vert2.x));
-		glVertex3fv(&(triangles[i].vert3.x));
-		
-		glVertex3fv(&(triangles[i].vert3.x));
-		glVertex3fv(&(triangles[i].vert1.x));
+	if(!triangles.empty()) {
+		ofSetColor(255);
+		int n = triangles.size();
+		glBegin(GL_LINES);
+		for(int i = 0; i < n; i++) {
+			glVertex3fv(&(triangles[i].vert1.x));
+			glVertex3fv(&(triangles[i].vert2.x));
+			
+			glVertex3fv(&(triangles[i].vert2.x));
+			glVertex3fv(&(triangles[i].vert3.x));
+			
+			glVertex3fv(&(triangles[i].vert3.x));
+			glVertex3fv(&(triangles[i].vert1.x));
+		}
+		glEnd();
 	}
-	glEnd();
 }
 
 void testApp::draw() {
