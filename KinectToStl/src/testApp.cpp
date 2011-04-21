@@ -363,7 +363,7 @@ void testApp::updateTrianglesRandom() {
 		float curSample = sobelbox.at<unsigned char>(curPosition) / 255.f;
 		float curGauntlet = powf(ofRandom(0, 1), 2 * randomWeight);
 		if(curSample > curGauntlet) {
-			points.push_back(makeVec(curPosition));
+			points.push_back(toOf(curPosition));
 			triangulator.addPoint(curPosition.x, curPosition.y);
 			sobelbox.at<unsigned char>(curPosition) = 0; // don't do the same point twice
 			i++;
