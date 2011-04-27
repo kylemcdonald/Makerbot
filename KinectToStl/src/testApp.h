@@ -4,12 +4,15 @@
 #include "ofxKinect.h"
 #include "ofxSTL.h"
 #include "ofxAutoControlPanel.h"
-#include "ofxReplicatorG.h"
 #include "ofxDelaunay.h"
 
 #include "ofxCv.h"
 using namespace ofxCv;
 using namespace cv;
+
+#ifdef USE_REPLICATORG
+#include "ofxReplicatorG.h"
+#endif
 
 // constant scale regardless of size
 // oriented correctly and sitting against the bed
@@ -72,7 +75,9 @@ public:
 	
 	ofxAutoControlPanel panel;
 	
+	#ifdef USE_REPLICATORG
 	ofxReplicatorG printer;
+	#endif
 	
 	ofxDelaunay triangulator;
 	

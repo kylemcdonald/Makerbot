@@ -45,7 +45,9 @@ ofVec3f ConvertProjectiveToRealWorld(float x, float y, float z) {
 }
 
 void testApp::setup() {
-	//printer.setup("192.168.0.160", 2000);
+	#ifdef USE_REPLICATORG
+	printer.setup("192.168.0.160", 2000);
+	#endif
 	
 	ofSetVerticalSync(true);
 	
@@ -162,9 +164,11 @@ void testApp::update() {
 			addTriangles(exporter, backTriangles, backNormals);
 			exporter.saveModel("Kinect Export " + pocoTime + ".stl");
 			
+			#ifdef USE_REPLICATORG
 			if(printer.isConnected()) {
 				printer.printToFile("/home/matt/MakerBot/repg_workspace/ReplicatorG/examples/Snake.stl", "/home/matt/Desktop/snake.s3g");
 			}
+			#endif
 			
 			panel.setValueB("exportStl", false);
 		}

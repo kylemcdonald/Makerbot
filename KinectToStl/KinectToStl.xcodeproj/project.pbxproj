@@ -11,7 +11,6 @@
 		270924F71349712800D79824 /* Distance.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 270924921349712700D79824 /* Distance.cpp */; };
 		270924F81349712800D79824 /* FloatImage.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 270924941349712700D79824 /* FloatImage.cpp */; };
 		270924F91349712800D79824 /* ofxCv.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 270924961349712700D79824 /* ofxCv.cpp */; };
-		270926AF1349936200D79824 /* ofxReplicatorG.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 270926AB1349936200D79824 /* ofxReplicatorG.cpp */; };
 		270926BF1349938200D79824 /* ofxTCPClient.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 270926B71349938200D79824 /* ofxTCPClient.cpp */; };
 		270926C01349938200D79824 /* ofxTCPManager.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 270926B91349938200D79824 /* ofxTCPManager.cpp */; };
 		270926C11349938200D79824 /* ofxTCPServer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 270926BB1349938200D79824 /* ofxTCPServer.cpp */; };
@@ -134,8 +133,6 @@
 		270924951349712700D79824 /* FloatImage.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = FloatImage.h; path = ../../../addons/ofxCv/src/FloatImage.h; sourceTree = SOURCE_ROOT; };
 		270924961349712700D79824 /* ofxCv.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ofxCv.cpp; path = ../../../addons/ofxCv/src/ofxCv.cpp; sourceTree = SOURCE_ROOT; };
 		270924971349712700D79824 /* ofxCv.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ofxCv.h; path = ../../../addons/ofxCv/src/ofxCv.h; sourceTree = SOURCE_ROOT; };
-		270926AB1349936200D79824 /* ofxReplicatorG.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ofxReplicatorG.cpp; path = ../../../addons/ofxReplicatorG/src/ofxReplicatorG.cpp; sourceTree = SOURCE_ROOT; };
-		270926AC1349936200D79824 /* ofxReplicatorG.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ofxReplicatorG.h; path = ../../../addons/ofxReplicatorG/src/ofxReplicatorG.h; sourceTree = SOURCE_ROOT; };
 		270926B51349938200D79824 /* ofxNetwork.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ofxNetwork.h; path = ../../../addons/ofxNetwork/src/ofxNetwork.h; sourceTree = SOURCE_ROOT; };
 		270926B61349938200D79824 /* ofxNetworkUtils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ofxNetworkUtils.h; path = ../../../addons/ofxNetwork/src/ofxNetworkUtils.h; sourceTree = SOURCE_ROOT; };
 		270926B71349938200D79824 /* ofxTCPClient.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ofxTCPClient.cpp; path = ../../../addons/ofxNetwork/src/ofxTCPClient.cpp; sourceTree = SOURCE_ROOT; };
@@ -433,33 +430,13 @@
 			path = ../../../addons/ofxCv/src;
 			sourceTree = SOURCE_ROOT;
 		};
-		270926491349936200D79824 /* ofxReplicatorG */ = {
-			isa = PBXGroup;
-			children = (
-				270926AA1349936200D79824 /* src */,
-			);
-			name = ofxReplicatorG;
-			path = ../../../addons/ofxReplicatorG;
-			sourceTree = SOURCE_ROOT;
-		};
-		270926AA1349936200D79824 /* src */ = {
-			isa = PBXGroup;
-			children = (
-				270926AB1349936200D79824 /* ofxReplicatorG.cpp */,
-				270926AC1349936200D79824 /* ofxReplicatorG.h */,
-			);
-			name = src;
-			path = ../../../addons/ofxReplicatorG/src;
-			sourceTree = SOURCE_ROOT;
-		};
 		270926B01349938200D79824 /* ofxNetwork */ = {
 			isa = PBXGroup;
 			children = (
 				270926B41349938200D79824 /* src */,
 			);
-			name = ofxNetwork;
-			path = ../../../addons/ofxNetwork;
-			sourceTree = SOURCE_ROOT;
+			path = ofxNetwork;
+			sourceTree = "<group>";
 		};
 		270926B41349938200D79824 /* src */ = {
 			isa = PBXGroup;
@@ -484,9 +461,8 @@
 			children = (
 				27206C2E133D3458002D05E6 /* src */,
 			);
-			name = ofxSTL;
-			path = ../../../addons/ofxSTL;
-			sourceTree = SOURCE_ROOT;
+			path = ofxSTL;
+			sourceTree = "<group>";
 		};
 		27206C2E133D3458002D05E6 /* src */ = {
 			isa = PBXGroup;
@@ -600,9 +576,8 @@
 				27206DA7133D4324002D05E6 /* install.xml */,
 				27206DA8133D4324002D05E6 /* src */,
 			);
-			name = ofxDirList;
-			path = ../../../addons/ofxDirList;
-			sourceTree = SOURCE_ROOT;
+			path = ofxDirList;
+			sourceTree = "<group>";
 		};
 		27206DA5133D4324002D05E6 /* doc */ = {
 			isa = PBXGroup;
@@ -629,9 +604,8 @@
 				27206DAC133D4324002D05E6 /* libs */,
 				27206DB1133D4324002D05E6 /* src */,
 			);
-			name = ofxXmlSettings;
-			path = ../../../addons/ofxXmlSettings;
-			sourceTree = SOURCE_ROOT;
+			path = ofxXmlSettings;
+			sourceTree = "<group>";
 		};
 		27206DAC133D4324002D05E6 /* libs */ = {
 			isa = PBXGroup;
@@ -655,14 +629,26 @@
 			path = ../../../addons/ofxXmlSettings/src;
 			sourceTree = SOURCE_ROOT;
 		};
+		27256D8C136854BF00BFBC20 /* core addons */ = {
+			isa = PBXGroup;
+			children = (
+				270926B01349938200D79824 /* ofxNetwork */,
+				27206DA4133D4324002D05E6 /* ofxDirList */,
+				27206DAA133D4324002D05E6 /* ofxXmlSettings */,
+				276A452D12EE849100F13E15 /* ofxThread */,
+				276A453012EE849100F13E15 /* ofxVectorMath */,
+			);
+			name = "core addons";
+			path = ../../../addons;
+			sourceTree = "<group>";
+		};
 		276A452D12EE849100F13E15 /* ofxThread */ = {
 			isa = PBXGroup;
 			children = (
 				276A452E12EE849100F13E15 /* src */,
 			);
-			name = ofxThread;
-			path = ../../../addons/ofxThread;
-			sourceTree = SOURCE_ROOT;
+			path = ofxThread;
+			sourceTree = "<group>";
 		};
 		276A452E12EE849100F13E15 /* src */ = {
 			isa = PBXGroup;
@@ -678,9 +664,8 @@
 			children = (
 				276A453112EE849100F13E15 /* src */,
 			);
-			name = ofxVectorMath;
-			path = ../../../addons/ofxVectorMath;
-			sourceTree = SOURCE_ROOT;
+			path = ofxVectorMath;
+			sourceTree = "<group>";
 		};
 		276A453112EE849100F13E15 /* src */ = {
 			isa = PBXGroup;
@@ -1090,17 +1075,11 @@
 		BB4B014C10F69532006C3DED /* addons */ = {
 			isa = PBXGroup;
 			children = (
-				27F80E86134A816500BFA9E6 /* ofxDelaunay */,
-				270926B01349938200D79824 /* ofxNetwork */,
-				270926491349936200D79824 /* ofxReplicatorG */,
-				2709237F1349712600D79824 /* ofxCv */,
-				27206DA4133D4324002D05E6 /* ofxDirList */,
-				27206DAA133D4324002D05E6 /* ofxXmlSettings */,
-				27206D45133D4299002D05E6 /* ofxControlPanel */,
 				27206C28133D3458002D05E6 /* ofxSTL */,
+				27F80E86134A816500BFA9E6 /* ofxDelaunay */,
+				2709237F1349712600D79824 /* ofxCv */,
+				27206D45133D4299002D05E6 /* ofxControlPanel */,
 				30D8BA8913039D0F00893F0B /* ofxKinect */,
-				276A452D12EE849100F13E15 /* ofxThread */,
-				276A453012EE849100F13E15 /* ofxVectorMath */,
 			);
 			name = addons;
 			path = ../../../addons;
@@ -1131,6 +1110,7 @@
 			children = (
 				E4B6FCAD0C3E899E008CF71C /* openFrameworks-Info.plist */,
 				E4B69B5B0A3A1756003C02F2 /* KinectToStl.app */,
+				27256D8C136854BF00BFBC20 /* core addons */,
 				BB4B014C10F69532006C3DED /* addons */,
 				E4B69E1C0A3A1BDC003C02F2 /* src */,
 				E4C2422310CC54B6004149E2 /* openFrameworks */,
@@ -1295,7 +1275,6 @@
 				270924F71349712800D79824 /* Distance.cpp in Sources */,
 				270924F81349712800D79824 /* FloatImage.cpp in Sources */,
 				270924F91349712800D79824 /* ofxCv.cpp in Sources */,
-				270926AF1349936200D79824 /* ofxReplicatorG.cpp in Sources */,
 				270926BF1349938200D79824 /* ofxTCPClient.cpp in Sources */,
 				270926C01349938200D79824 /* ofxTCPManager.cpp in Sources */,
 				270926C11349938200D79824 /* ofxTCPServer.cpp in Sources */,
