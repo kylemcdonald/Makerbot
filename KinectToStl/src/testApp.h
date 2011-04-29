@@ -55,6 +55,7 @@ public:
 	void postProcess();
 	
 	ofxKinect kinect;
+	FloatImage kinectBuffer;
 	ofEasyCam cam;
 	
 	vector<ofVec3f> surface;

@@ -49,11 +49,13 @@ void testApp::setup() {
 	printer.setup("192.168.0.160", 2000);
 	#endif
 	
+	kinectBuffer.allocate(640, 480);
+	
 	ofSetVerticalSync(true);
 	
 	panel.setup("Control Panel", 5, 5, 250, 800);
 	panel.addPanel("Settings");
-	panel.addSlider("zCutoff", "zCutoff", 100, 20, 200);
+	panel.addSlider("zCutoff", "zCutoff", 82, 20, 200);
 	panel.addSlider("stlWidth", "stlWidth", 60, 10, 120);
 	panel.addToggle("exportStl", "exportStl", false);
 	panel.addToggle("useRandomExport", "useRandomExport", false);
@@ -62,6 +64,7 @@ void testApp::setup() {
 	panel.addToggle("drawMesh", "drawMesh", true);
 	panel.addToggle("drawWire", "drawWire", false);
 	panel.addToggle("useRandom", "useRandom", false);
+	panel.addSlider("temporalBlur", "temporalBlur", .9, .75, 1);
 	panel.addSlider("randomCount", "randomCount", 10000, 500, 20000, true);
 	panel.addSlider("randomBlur", "randomBlur", 6, 0, 10);
 	panel.addSlider("randomWeight", "randomWeight", 1.5, 0, 2);
@@ -248,8 +251,15 @@ void testApp::cutoffKinect() {
 	}
 }
 
+
 void testApp::updateSurface() {
 	float* z = kinect.getDistancePixels();
+	float alpha = panel.getValueF("temporalBlur");
+	float beta = 1 - alpha;
+	Mat kinectMat = Mat(480, 640, CV_32FC1, z);
+	cv::addWeighted(kinectBuffer.toCv(), alpha, kinectMat, beta, 0, kinectBuffer.toCv());
+	ofxCv::copy(kinectMat, kinectBuffer.toCv());
+	
 	int i = 0;
 	for(int y = 0; y < Yres; y++) {
 		for(int x = 0; x < Xres; x++) {
@@ -496,7 +506,7 @@ void testApp::draw() {
 		
 		if(panel.getValueB("drawMesh")) {
 			// draw triangles
-			ofSetGlobalAmbientColor(ofColor(128));
+			light.setAmbientColor(ofColor(128));
 			drawTriangleArray(backTriangles, backNormals);
 			drawTriangleArray(triangles, normals);
 		}

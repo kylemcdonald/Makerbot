@@ -30,7 +30,7 @@ void testApp::setup() {
 void testApp::update() {
 	cam.update();
 	if(cam.isFrameNew()) {
-		cv::Size boardSize(9, 7);
+		cv::Size boardSize(4,3);//9, 7);
 		Mat camMat = toCv(cam);
 		locationFound = findChessboardCorners(camMat, boardSize, corners, CALIB_CB_ADAPTIVE_THRESH);
 		if(locationFound) {
@@ -44,7 +44,7 @@ void testApp::update() {
 			cornerSubPix(grayMat, corners, cv::Size(4, 4), cv::Size(-1, -1), TermCriteria(CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 30, 0.1));
 			
 			vector<Point3f> objectPoints;
-			float boardScale = 25; // mm
+			float boardScale = 50;//25; // mm
 			for(int y = 0; y < boardSize.height; y++) {
 				for(int x = 0; x < boardSize.width; x++) {
 					objectPoints.push_back(Point3f((x - ((boardSize.width - 1) / 2)) * boardScale,
