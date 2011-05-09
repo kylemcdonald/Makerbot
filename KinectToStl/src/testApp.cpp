@@ -53,32 +53,34 @@ void testApp::setup() {
 	
 	ofSetVerticalSync(true);
 	
-	panel.setup("Control Panel", 5, 5, 250, 800);
+	panel.setup(250, 800);
 	panel.addPanel("Settings");
-	panel.addSlider("zCutoff", "zCutoff", 82, 20, 200);
-	panel.addSlider("stlWidth", "stlWidth", 60, 10, 120);
-	panel.addToggle("exportStl", "exportStl", false);
-	panel.addToggle("useRandomExport", "useRandomExport", false);
+	panel.addSlider("zCutoff", 82, 20, 200);
+	panel.addSlider("fovWidth", 1, 0, 1);
+	panel.addSlider("fovHeight", 1, 0, 1);
+	panel.addSlider("stlWidth", 60, 10, 120);
+	panel.addToggle("exportStl", false);
+	panel.addToggle("useRandomExport", false);
 	
 	panel.addPanel("Extra");
-	panel.addToggle("drawMesh", "drawMesh", true);
-	panel.addToggle("drawWire", "drawWire", false);
-	panel.addToggle("useRandom", "useRandom", false);
-	panel.addSlider("temporalBlur", "temporalBlur", .9, .75, 1);
-	panel.addSlider("randomCount", "randomCount", 10000, 500, 20000, true);
-	panel.addSlider("randomBlur", "randomBlur", 6, 0, 10);
-	panel.addSlider("randomWeight", "randomWeight", 1.5, 0, 2);
-	panel.addToggle("useSmoothing", "useSmoothing", true);
-	panel.addSlider("smoothingAmount", "smoothingAmount", 1, 0, 4);
-	panel.addSlider("backOffset", "backOffset", 1, 0, 4);
-	panel.addToggle("useWatermark", "useWatermark", false);
-	panel.addSlider("watermarkScale", "watermarkScale", 2, 0, 8);
-	panel.addSlider("watermarkXOffset", "watermarkXOffset", 10, 0, 320, true);
-	panel.addSlider("watermarkYOffset", "watermarkYOffset", 10, 0, 240, true);
-	panel.addSlider("lightDistance", "lightDistance", 800, 0, 1000);
-	panel.addSlider("lightOffset", "lightOffset", 400, 0, 1000);
-	panel.addToggle("useSimplify", "useSimplify", true);
-	panel.addToggle("pause", "pause", false);
+	panel.addToggle("drawMesh", true);
+	panel.addToggle("drawWire", false);
+	panel.addToggle("useRandom", false);
+	panel.addSlider("temporalBlur", .9, .75, 1);
+	panel.addSlider("randomCount", 10000, 500, 20000, true);
+	panel.addSlider("randomBlur", 6, 0, 10);
+	panel.addSlider("randomWeight", 1.5, 0, 2);
+	panel.addToggle("useSmoothing", true);
+	panel.addSlider("smoothingAmount", 1, 0, 4);
+	panel.addSlider("backOffset", 1, 0, 4);
+	panel.addToggle("useWatermark", false);
+	panel.addSlider("watermarkScale", 2, 0, 8);
+	panel.addSlider("watermarkXOffset", 10, 0, 320, true);
+	panel.addSlider("watermarkYOffset", 10, 0, 240, true);
+	panel.addSlider("lightDistance", 800, 0, 1000);
+	panel.addSlider("lightOffset", 400, 0, 1000);
+	panel.addToggle("useSimplify", true);
+	panel.addToggle("pause", false);
 	
 	watermark.loadImage(".watermark.png");
 	watermark.setImageType(OF_IMAGE_GRAYSCALE);
