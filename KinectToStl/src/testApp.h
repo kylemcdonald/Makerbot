@@ -44,7 +44,8 @@ public:
 	void updateTriangles();
 	void updateTrianglesSimplify();
 	void updateTrianglesRandom();
-	void addBack(ofVec3f a, ofVec3f b, ofVec3f c);
+	void addBack(ofVec3f& a, ofVec3f& b, ofVec3f& c);
+	void addBack(ofVec3f& a, ofVec3f& b, ofVec3f& c, ofVec3f& d);
 	void updateBack();
 	
 	ofVec3f getSurface(XYZ& position);
@@ -69,8 +70,9 @@ public:
 	float backOffset;
 	float zCutoff;
 	float globalScale;
+	Point2d roiStart, roiEnd;
 	
-	ofLight light;
+	ofLight redLight, greenLight, blueLight;
 	
 	ofImage watermark;
 	

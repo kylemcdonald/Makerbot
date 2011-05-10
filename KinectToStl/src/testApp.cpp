@@ -38,6 +38,14 @@ const float YtoZ = tanf(FovV/2)*2;
 const unsigned int Xres = 640;
 const unsigned int Yres = 480;
 
+int getSurfaceIndex(int x, int y) {
+	return y * Xres + x;
+}
+
+ofVec3f testApp::getSurface(XYZ& position) {
+	return surface[position.y * Xres + position.x];
+}
+
 ofVec3f ConvertProjectiveToRealWorld(float x, float y, float z) {
 	return ofVec3f((x/Xres-.5f) * z * XtoZ,
 								 (.5f-y/Yres) * z * YtoZ,
@@ -45,9 +53,9 @@ ofVec3f ConvertProjectiveToRealWorld(float x, float y, float z) {
 }
 
 void testApp::setup() {
-	#ifdef USE_REPLICATORG
+#ifdef USE_REPLICATORG
 	printer.setup("192.168.0.160", 2000);
-	#endif
+#endif
 	
 	kinectBuffer.allocate(640, 480);
 	
@@ -55,12 +63,20 @@ void testApp::setup() {
 	
 	panel.setup(250, 800);
 	panel.addPanel("Settings");
-	panel.addSlider("zCutoff", 82, 20, 200);
-	panel.addSlider("fovWidth", 1, 0, 1);
-	panel.addSlider("fovHeight", 1, 0, 1);
-	panel.addSlider("stlWidth", 60, 10, 120);
+	panel.addSlider("zCutoff", 80, 20, 200);
+	panel.addSlider("fovWidth", .5, 0, 1);
+	panel.addSlider("fovHeight", .75, 0, 1);
+	panel.addSlider("stlSize", 60, 10, 120);
 	panel.addToggle("exportStl", false);
 	panel.addToggle("useRandomExport", false);
+	
+	panel.addPanel("Lighting");
+	panel.addToggle("drawLight", true);
+	panel.addSlider("lightDistance", 15, 0, 50);
+	panel.addSlider("lightRotation", 0, -PI, PI);
+	panel.addSlider("lightY", -80, -150, 150);
+	panel.addSlider("lightZ", 660, 0, 1000);
+	panel.addSlider("diffuseAmount", 245, 0, 255);
 	
 	panel.addPanel("Extra");
 	panel.addToggle("drawMesh", true);
@@ -77,8 +93,6 @@ void testApp::setup() {
 	panel.addSlider("watermarkScale", 2, 0, 8);
 	panel.addSlider("watermarkXOffset", 10, 0, 320, true);
 	panel.addSlider("watermarkYOffset", 10, 0, 240, true);
-	panel.addSlider("lightDistance", 800, 0, 1000);
-	panel.addSlider("lightOffset", 400, 0, 1000);
 	panel.addToggle("useSimplify", true);
 	panel.addToggle("pause", false);
 	
@@ -90,9 +104,6 @@ void testApp::setup() {
 	kinect.init();
 	kinect.open();
 	
-	light.setup();
-	light.setDiffuseColor(ofColor(128));
-	
 	surface.resize(Xres * Yres);
 	
 	backTriangles.resize(2 * (((Xres - 1) + (Yres - 1)) * 2 + 1));
@@ -101,6 +112,10 @@ void testApp::setup() {
 	ofSetFrameRate(60);
 	
 	offset.set(0, 0, -100);
+	
+	redLight.setup();
+	greenLight.setup();
+	blueLight.setup();
 }
 
 void addTriangles(ofxSTLExporter& exporter, vector<Triangle>& triangles, vector<ofVec3f>& normals) {
@@ -115,10 +130,20 @@ void testApp::update() {
 	if(!panel.getValueB("pause") && kinect.isFrameNew())	{
 		zCutoff = panel.getValueF("zCutoff");
 		
-		ofVec3f idealLeft = ConvertProjectiveToRealWorld(0, 0, zCutoff);
-		ofVec3f idealRight = ConvertProjectiveToRealWorld(Xres - 1, 0, zCutoff);
-		float width = (idealRight - idealLeft).x;
-		globalScale = panel.getValueF("stlWidth") / width;
+		float fovWidth = panel.getValueF("fovWidth");
+		float fovHeight = panel.getValueF("fovHeight");
+		int left = Xres * (1 - fovWidth) / 2;
+		int top = Yres * (1 - fovHeight) / 2;
+		int right = left + Xres * fovWidth;
+		int bottom = top + Yres * fovHeight;
+		roiStart = Point2d(left, top);
+		roiEnd = Point2d(right, bottom);
+		
+		ofVec3f nw = ConvertProjectiveToRealWorld(roiStart.x, roiStart.y, zCutoff);
+		ofVec3f se = ConvertProjectiveToRealWorld(roiEnd.x - 1, roiEnd.y - 1, zCutoff);
+		float width = (se - nw).x;
+		float height = (se - nw).y;
+		globalScale = panel.getValueF("stlSize") / MAX(width, height);
 		
 		backOffset = panel.getValueF("backOffset") / globalScale;
 		
@@ -138,10 +163,6 @@ void testApp::update() {
 		updateSurface();
 		updateSurfaceTime = stopTimer();
 		
-		startTimer();
-		updateBack();
-		updateBackTime = stopTimer();
-		
 		bool exportStl = panel.getValueB("exportStl");
 		bool useRandomExport = panel.getValueB("useRandomExport");
 		
@@ -157,6 +178,10 @@ void testApp::update() {
 		updateTrianglesTime = stopTimer();
 		
 		startTimer();
+		updateBack();
+		updateBackTime = stopTimer();
+		
+		startTimer();
 		postProcess();
 		postProcessTime = stopTimer();
 		
@@ -169,17 +194,39 @@ void testApp::update() {
 			addTriangles(exporter, backTriangles, backNormals);
 			exporter.saveModel("Kinect Export " + pocoTime + ".stl");
 			
-			#ifdef USE_REPLICATORG
+#ifdef USE_REPLICATORG
 			if(printer.isConnected()) {
 				printer.printToFile("/home/matt/MakerBot/repg_workspace/ReplicatorG/examples/Snake.stl", "/home/matt/Desktop/snake.s3g");
 			}
-			#endif
+#endif
 			
 			panel.setValueB("exportStl", false);
 		}
 	}
 	
-	light.setPosition(panel.getValueF("lightOffset"), 0, panel.getValueF("lightDistance"));
+	float diffuse = panel.getValueF("diffuseAmount");
+	redLight.setDiffuseColor(ofColor(diffuse, 0, 0));
+	greenLight.setDiffuseColor(ofColor(0, diffuse, 0));
+	blueLight.setDiffuseColor(ofColor(0, 0, diffuse));
+	
+	float ambient = 255 - diffuse;
+	redLight.setAmbientColor(ofColor(ambient, 0, 0));
+	greenLight.setAmbientColor(ofColor(0, ambient, 0));
+	blueLight.setAmbientColor(ofColor(0, 0, ambient));
+	
+	float lightY = ofGetHeight() / 2 + panel.getValueF("lightY");
+	float lightZ = panel.getValueF("lightZ");
+	float lightDistance = panel.getValueF("lightDistance");
+	float lightRotation = panel.getValueF("lightRotation");
+	redLight.setPosition(ofGetWidth() / 2 + cos(lightRotation + 0 * TWO_PI / 3) * lightDistance,
+											 lightY + sin(lightRotation + 0 * TWO_PI / 3) * lightDistance,
+											 lightZ);
+	greenLight.setPosition(ofGetWidth() / 2 + cos(lightRotation + 1 * TWO_PI / 3) * lightDistance,
+												 lightY + sin(lightRotation + 1 * TWO_PI / 3) * lightDistance,
+												 lightZ);
+	blueLight.setPosition(ofGetWidth() / 2 + cos(lightRotation + 2 * TWO_PI / 3) * lightDistance,
+												lightY + sin(lightRotation + 2 * TWO_PI / 3) * lightDistance,
+												lightZ);
 }
 
 
@@ -269,16 +316,6 @@ void testApp::updateSurface() {
 			i++;
 		}
 	}
-	
-	// final pass to 0 the edges
-	for(int x = 0; x < Xres; x++) {
-		surface[x] = ConvertProjectiveToRealWorld(x, 0, zCutoff);
-		surface[(Yres - 1) * Xres + x] = ConvertProjectiveToRealWorld(x, Yres - 1, zCutoff);
-	}
-	for(int y = 0; y < Yres; y++) {
-		surface[y * Xres] = ConvertProjectiveToRealWorld(0, y, zCutoff);
-		surface[y * Xres + (Xres - 1)] = ConvertProjectiveToRealWorld(Xres - 1, y, zCutoff);
-	}
 }
 
 void testApp::updateTriangles() {
@@ -307,51 +344,56 @@ void testApp::updateTriangles() {
 	}
 }
 
-void testApp::updateTrianglesSimplify() {
-	triangles.resize((Xres - 1) * (Yres - 1) * 2);
+void testApp::updateTrianglesSimplify() {	
+	// zero edges
+	for(int x = roiStart.x; x < roiEnd.x; x++) {
+		surface[getSurfaceIndex(x, roiStart.y)] = ConvertProjectiveToRealWorld(x, roiStart.y, zCutoff); // top
+		surface[getSurfaceIndex(x, roiEnd.y - 1)] = ConvertProjectiveToRealWorld(x, roiEnd.y - 1, zCutoff); // bottom
+	}
+	for(int y = roiStart.y; y < roiEnd.y; y++) {
+		surface[getSurfaceIndex(roiStart.x, y)] = ConvertProjectiveToRealWorld(roiStart.x, y, zCutoff); // left
+		surface[getSurfaceIndex(roiEnd.x - 1, y)] = ConvertProjectiveToRealWorld(roiEnd.x - 1, y, zCutoff); // right
+	}
 	
-	int j = 0;
-	Triangle* top;
-	Triangle* bottom;
+	triangles.resize((roiEnd.x - roiStart.x) * (roiEnd.y - roiStart.y) * 2);
+	int totalTriangles = 0;
+	Triangle* topTriangle;
+	Triangle* bottomTriangle;
 	float* z = kinect.getDistancePixels();
-	for(int y = 0; y < Yres - 1; y++) {
+	for(int y = roiStart.y; y < roiEnd.y - 1; y++) {
 		bool stretching = false;
-		for(int x = 0; x < Xres - 1; x++) {
-			int i = y * Xres + x;
+		for(int x = roiStart.x; x < roiEnd.x - 1; x++) {
+			bool endOfRow = (x == roiEnd.x - 2);
 			
-			int nw = i;
-			int ne = nw + 1;
-			int sw = i + Xres;
-			int se = sw + 1;
+			int nw = getSurfaceIndex(x, y);
+			int ne = getSurfaceIndex(x + 1, y);
+			int sw = getSurfaceIndex(x, y + 1);
+			int se = getSurfaceIndex(x + 1, y + 1);
 			
 			bool flat = (z[nw] == z[ne] && z[nw] == z[sw] && z[nw] == z[se]);
-			bool endOfRow = (x == Xres - 2);
 			if(endOfRow ||
 				 (stretching && flat)) {
 				// stretch the quad to our new position
-				top->vert2 = surface[ne];
-				bottom->vert1 = surface[ne];
-				bottom->vert2 = surface[se];
+				topTriangle->vert2 = surface[ne];
+				bottomTriangle->vert1 = surface[ne];
+				bottomTriangle->vert2 = surface[se];				
 			} else {			
-				top = &triangles[j++];
-				top->vert1 = surface[nw];
-				top->vert2 = surface[ne];
-				top->vert3 = surface[sw];
+				topTriangle = &triangles[totalTriangles++];
+				topTriangle->vert1 = surface[nw];
+				topTriangle->vert2 = surface[ne];
+				topTriangle->vert3 = surface[sw];
 				
-				bottom = &triangles[j++];
-				bottom->vert1 = surface[ne];
-				bottom->vert2 = surface[se];
-				bottom->vert3 = surface[sw];
+				bottomTriangle = &triangles[totalTriangles++];
+				bottomTriangle->vert1 = surface[ne];
+				bottomTriangle->vert2 = surface[se];
+				bottomTriangle->vert3 = surface[sw];
 				
 				stretching = flat;
 			}
 		}
 	}
-	triangles.resize(j);
-}
-
-ofVec3f testApp::getSurface(XYZ& position) {
-	return surface[position.y * Xres + position.x];
+	
+	triangles.resize(totalTriangles);
 }
 
 vector<ofVec2f> points;
@@ -415,8 +457,13 @@ void testApp::updateTrianglesRandom() {
 	}
 }
 
-void testApp::addBack(ofVec3f a, ofVec3f b, ofVec3f c) {
+void testApp::addBack(ofVec3f& a, ofVec3f& b, ofVec3f& c) {
 	backTriangles.push_back(Triangle(a, b, c));
+}
+
+void testApp::addBack(ofVec3f& a, ofVec3f& b, ofVec3f& c, ofVec3f& d) {
+	addBack(a, b, d);
+	addBack(b, c, d);
 }
 
 void testApp::updateBack() {
@@ -424,36 +471,23 @@ void testApp::updateBack() {
 	Triangle cur;
 	ofVec3f offset(0, 0, backOffset);
 	
-	int nw = 0;
-	int ne = nw + (Xres - 1);
-	int sw = (Yres - 1) * Xres;
-	int se = sw + (Xres - 1);
+	ofVec3f nw = surface[getSurfaceIndex(roiStart.x, roiStart.y)];
+	ofVec3f ne = surface[getSurfaceIndex(roiEnd.x - 1, roiStart.y)];
+	ofVec3f sw = surface[getSurfaceIndex(roiStart.x, roiEnd.y - 1)];
+	ofVec3f se = surface[getSurfaceIndex(roiEnd.x - 1, roiEnd.y - 1)];
 	
-	ofVec3f nwOffset = surface[nw] + offset;
-	ofVec3f swOffset = surface[sw] + offset;
-	ofVec3f neOffset = surface[ne] + offset;
+	ofVec3f nwo = nw + offset;
+	ofVec3f swo = sw + offset;
+	ofVec3f neo = ne + offset;
+	ofVec3f seo = se + offset;
 	
-	// top and bottom triangles
-	for(int x = 0; x < Xres - 1; x++) {
-		addBack(nwOffset, surface[nw + x + 1], surface[nw + x]);
-		addBack(surface[sw + x], surface[sw + x + 1], swOffset);
-	}
+	addBack(nwo, neo, ne, nw); // top
+	addBack(ne, neo, seo, se); // right
+	addBack(sw, se, seo, swo); // bottom
+	addBack(nwo, nw, sw, swo); // left
 	
-	// left and right triangles
-	for(int y = 0; y < Yres - 1; y++) {
-		int i = Xres * y;
-		addBack(surface[nw + i], surface[nw + i + Xres], nwOffset);
-		addBack(neOffset, surface[ne + i + Xres], surface[ne + i]);
-	}
-	
-	addBack(surface[nw] + offset, surface[ne] + offset, surface[ne]);
-	addBack(surface[ne] + offset, surface[se] + offset, surface[se]);
-	addBack(surface[sw], surface[sw] + offset, surface[nw] + offset);
-	addBack(surface[se], surface[se] + offset, surface[sw] + offset);
-	
-	// two back faces	
-	addBack(surface[sw] + offset, surface[ne] + offset, surface[nw] + offset);
-	addBack(surface[sw] + offset, surface[se] + offset, surface[ne] + offset);
+	// two back faces
+	addBack(nwo, swo, seo, neo);
 	
 	calculateNormals(backTriangles, backNormals);
 }
@@ -492,15 +526,14 @@ void drawTriangleWire(vector<Triangle>& triangles) {
 
 void testApp::draw() {
 	ofBackground(0, 0, 0);
+	
+	glEnable(GL_DEPTH_TEST);
 	ofSetColor(255);
 	
 	cam.begin();
 	ofEnableLighting();
-	
-	if(!surface.empty()) {
 		
-		glEnable(GL_DEPTH_TEST);
-		
+	if(!surface.empty()) {		
 		ofPushStyle();
 		ofPopStyle();
 		
@@ -508,7 +541,6 @@ void testApp::draw() {
 		
 		if(panel.getValueB("drawMesh")) {
 			// draw triangles
-			light.setAmbientColor(ofColor(128));
 			drawTriangleArray(backTriangles, backNormals);
 			drawTriangleArray(triangles, normals);
 		}
@@ -519,12 +551,12 @@ void testApp::draw() {
 		}
 		
 		renderTime = stopTimer();
-		
-		glDisable(GL_DEPTH_TEST);
 	}
 	
 	ofDisableLighting();	
+	
 	cam.end();
+	glDisable(GL_DEPTH_TEST);
 	
 	ofPushMatrix();
 	ofTranslate(ofGetWidth() - 200, ofGetHeight() - 80);
