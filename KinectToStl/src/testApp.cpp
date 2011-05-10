@@ -205,14 +205,14 @@ void testApp::update() {
 	}
 	
 	float diffuse = panel.getValueF("diffuseAmount");
-	redLight.setDiffuseColor(ofColor(diffuse, 0, 0));
-	greenLight.setDiffuseColor(ofColor(0, diffuse, 0));
-	blueLight.setDiffuseColor(ofColor(0, 0, diffuse));
+	redLight.setDiffuseColor(ofColor(diffuse / 2, diffuse / 2, 0));
+	greenLight.setDiffuseColor(ofColor(0, diffuse / 2, diffuse / 2));
+	blueLight.setDiffuseColor(ofColor(diffuse / 2, 0, diffuse / 2));
 	
 	float ambient = 255 - diffuse;
-	redLight.setAmbientColor(ofColor(ambient, 0, 0));
-	greenLight.setAmbientColor(ofColor(0, ambient, 0));
-	blueLight.setAmbientColor(ofColor(0, 0, ambient));
+	redLight.setAmbientColor(ofColor(ambient / 2, ambient / 2, 0));
+	greenLight.setAmbientColor(ofColor(0, ambient / 2, ambient / 2));
+	blueLight.setAmbientColor(ofColor(ambient / 2, 0, ambient / 2));
 	
 	float lightY = ofGetHeight() / 2 + panel.getValueF("lightY");
 	float lightZ = panel.getValueF("lightZ");
