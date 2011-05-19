@@ -102,7 +102,7 @@ void Flt::setup(string filename) {
 		vertices[i] *= scaling;
 	}
 	
-	saveStl(mesh, "nyc.stl");
+	saveStl(mesh, "output.stl");
 }
 
 void Flt::addFace(ofVec3f a, ofVec3f b, ofVec3f c) {
@@ -156,7 +156,7 @@ void Flt::draw() {
 void testApp::setup() {
 	ofSetLogLevel(OF_LOG_VERBOSE);
 	glEnable(GL_DEPTH_TEST);
-	flt.setup("nyc-centered.raw");
+	flt.setup("input.flt");
 	light.setup();
 	light.setDiffuseColor(ofColor(255));
 	light.setAmbientColor(ofColor(0));
