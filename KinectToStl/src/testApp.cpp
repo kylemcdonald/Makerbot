@@ -113,9 +113,9 @@ void testApp::setup() {
 	
 	offset.set(0, 0, -100);
 	
-	redLight.setup();
-	greenLight.setup();
-	blueLight.setup();
+	redLight.enable();
+	greenLight.enable();
+	blueLight.enable();
 }
 
 void addTriangles(ofxSTLExporter& exporter, vector<Triangle>& triangles, vector<ofVec3f>& normals) {
