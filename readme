@@ -1,5 +1,19 @@
 This repository contains a collection of experiments and projects developed while in residence at Makerbot Industries.
 
+Here are some directions for getting a development environment running for KinectToStl:
+git clone https://github.com/openframeworks/openFrameworks.git
+cd openFrameworks/addons
+git clone https://github.com/kylemcdonald/ofxCv.git
+cd ofxCv
+./update-projects.sh
+cd ..
+git clone https://github.com/kylemcdonald/ofxControlPanel.git
+git clone https://github.com/ofTheo/ofxKinect.git
+svn checkout http://julapy.googlecode.com/svn/trunk/openframeworks/ofxDelaunay ofxDelaunay
+curl https://ruicode.googlecode.com/files/ofxSTL%20001.zip > ofxStl.zip
+unzip ofxStl.zip
+rm ofxStl.zip
+
 KinectToStl requires:
 openFrameworks https://github.com/openframeworks/openFrameworks/
 ofxDelaunay https://code.google.com/p/julapy/source/browse/trunk/openframeworks/ofxDelaunay/

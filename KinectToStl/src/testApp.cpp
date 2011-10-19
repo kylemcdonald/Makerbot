@@ -57,8 +57,6 @@ void testApp::setup() {
 	printer.setup("192.168.0.160", 2000);
 #endif
 	
-	kinectBuffer.allocate(640, 480);
-	
 	ofSetVerticalSync(true);
 	
 	panel.setup(250, 800);
@@ -306,8 +304,9 @@ void testApp::updateSurface() {
 	float alpha = panel.getValueF("temporalBlur");
 	float beta = 1 - alpha;
 	Mat kinectMat = Mat(480, 640, CV_32FC1, z);
-	cv::addWeighted(kinectBuffer.toCv(), alpha, kinectMat, beta, 0, kinectBuffer.toCv());
-	ofxCv::copy(kinectMat, kinectBuffer.toCv());
+	Mat kinectBuffer = Mat(480, 640, CV_32FC1, z);
+	cv::addWeighted(kinectBuffer, alpha, kinectMat, beta, 0, kinectBuffer);
+	ofxCv::copy(kinectMat, kinectBuffer);
 	
 	int i = 0;
 	for(int y = 0; y < Yres; y++) {
@@ -409,7 +408,7 @@ void testApp::updateTrianglesRandom() {
 	int randomBlur = panel.getValueI("randomBlur") * 2 + 1;
 	boxFilter(sobelxy, sobelbox, 0, cv::Size(randomBlur, randomBlur), Point2d(-1, -1), false);
 	
-	triangulator.init();
+	triangulator.reset();
 	points.clear();
 	int i = 0;
 	attempts = 0;
@@ -422,7 +421,7 @@ void testApp::updateTrianglesRandom() {
 		float curGauntlet = powf(ofRandom(0, 1), 2 * randomWeight);
 		if(curSample > curGauntlet) {
 			points.push_back(toOf(curPosition));
-			triangulator.addPoint(curPosition.x, curPosition.y);
+			triangulator.addPoint(curPosition.x, curPosition.y, 0);
 			sobelbox.at<unsigned char>(curPosition) = 0; // don't do the same point twice
 			i++;
 		}
@@ -436,24 +435,22 @@ void testApp::updateTrianglesRandom() {
 	int w = mat.cols;
 	int h = mat.rows;
 	for(int x = 0; x < w; x++) {
-		triangulator.addPoint(x, 0);
-		triangulator.addPoint(x, h - 1);
+		triangulator.addPoint(x, 0, 0);
+		triangulator.addPoint(x, h - 1, 0);
 	}
 	for(int y = 0; y < h; y++) {
-		triangulator.addPoint(0, y);
-		triangulator.addPoint(w - 1, y);
+		triangulator.addPoint(0, y, 0);
+		triangulator.addPoint(w - 1, y, 0);
 	}
 	
 	triangulator.triangulate();
 	
-	int n = triangulator.getNumTriangles();
-	XYZ* pts = triangulator.getPoints();
-	ITRIANGLE* tris = triangulator.getTriangles();
+	int n = triangulator.triangles.size();
 	triangles.resize(n);
 	for(int i = 0; i < n; i++) {
-		triangles[i].vert3 = getSurface(pts[tris[i].p1]);
-		triangles[i].vert2 = getSurface(pts[tris[i].p2]);
-		triangles[i].vert1 = getSurface(pts[tris[i].p3]);
+		triangles[i].vert3 = triangulator.triangles[i].points[0];
+		triangles[i].vert2 = triangulator.triangles[i].points[1];
+		triangles[i].vert1 = triangulator.triangles[i].points[2];
 	}
 }
 
